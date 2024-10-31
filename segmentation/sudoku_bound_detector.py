@@ -3,6 +3,8 @@ from matplotlib import pyplot as plt
 import numpy as np
 import torch
 from ultralytics import YOLO
+import io
+from PIL import Image
 
 class SudokuBoundDetector:
     def __init__(self, model_path):
@@ -101,3 +103,18 @@ class SudokuBoundDetector:
         corrected_img = self.correct_area(orig_img, contour)
         final_img = self.clean_image(corrected_img)
         self.display_img(final_img)
+
+    def process_and_return_corrected_image(self, img_path):
+        """Processes the image to detect, correct, and clean the sudoku area, returning the final image as bytes."""
+        prediction = self.get_detection(img_path)
+        orig_img = prediction.orig_img
+        contour = prediction.masks.xy[0]
+        corrected_img = self.correct_area(orig_img, contour)
+        final_img = self.clean_image(corrected_img)
+        
+        img_bytes = io.BytesIO()
+        final_img = cv2.cvtColor(final_img, cv2.COLOR_GRAY2RGB)
+        Image.fromarray(final_img).save(img_bytes, format="PNG")
+        img_bytes.seek(0)
+        
+        return img_bytes
