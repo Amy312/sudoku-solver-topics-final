@@ -5,7 +5,7 @@ from torchvision import transforms
 
 def load_digit_model():
     # Cargar el modelo entrenado
-    model = torch.load("models/digit_model.pt")
+    model = torch.load("models/digit_best_model.pth")
     model.eval()
     return model
 
