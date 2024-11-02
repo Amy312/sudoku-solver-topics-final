@@ -21,48 +21,53 @@ def preprocess_sudoku_image(image_path):
         print(f"Error al cargar la imagen desde {image_path}")
         return None
 
+    max_dim = 1000
+    if max(image.shape) > max_dim:
+        scale = max_dim / max(image.shape)
+        image = cv2.resize(image, (int(image.shape[1]*scale), int(image.shape[0]*scale)), interpolation=cv2.INTER_AREA)
+
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    # Puedes agregar más pasos de preprocesamiento si es necesario
-    return gray
+    gray = cv2.GaussianBlur(gray, (5, 5), 0)
+    thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                   cv2.THRESH_BINARY_INV, 11, 2)
+    return thresh
 
 def recognize_digits(image):
     model = load_digit_model()
-
     transform = transforms.Compose([
-        transforms.Resize((224, 224)),
+        transforms.Resize((224, 224)),  
         transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406],
+        transforms.Normalize([0.485, 0.456, 0.406], 
                              [0.229, 0.224, 0.225])
     ])
-
     digits = np.zeros((9, 9), dtype=int)
-    cell_height = image.shape[0] // 9
-    cell_width = image.shape[1] // 9
+    height, width = image.shape
+    cell_height = height // 9
+    cell_width = width // 9
 
     for row in range(9):
         for col in range(9):
-            cell = image[row * cell_height:(row + 1) * cell_height,
-                         col * cell_width:(col + 1) * cell_width]
+            y_start = row * cell_height
+            x_start = col * cell_width
+            y_end = y_start + cell_height
+            x_end = x_start + cell_width
+            cell = image[y_start:y_end, x_start:x_end]
 
-            # La celda ya está en escala de grises
-            cell_gray = cell
+            margin = int(cell_height * 0.161)  
+            cell = cell[margin:-margin, margin:-margin]
 
-            # Aplicar umbralización para resaltar el dígito
-            _, thresh = cv2.threshold(cell_gray, 128, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
-            cell_preprocessed = thresh
+            cell = clean_cell_image(cell)
 
-            # Comprobar si la celda está vacía basándose en los píxeles no negros
-            if is_cell_empty(cell_preprocessed):
-                digits[row, col] = 0  # Representa una celda vacía
-                print(f'Celda ({row}, {col}) vacía (por píxeles)')
-                # Mostrar la imagen preprocesada de la celda vacía
-                #plt.imshow(cell_preprocessed, cmap='gray')
+            if is_cell_empty(cell):
+                digits[row, col] = 0  # Celda vacía
+                print(f'Celda ({row}, {col}) vacía')
+                # Mostrar la celda vacía
+                #plt.imshow(cell, cmap='gray')
                 #plt.title(f'Celda ({row}, {col}) - Vacía')
                 #plt.axis('off')
                 #plt.show()
             else:
-                # Convertir de escala de grises a RGB
-                cell_rgb = cv2.cvtColor(cell_preprocessed, cv2.COLOR_GRAY2RGB)
+                cell_rgb = cv2.cvtColor(cell, cv2.COLOR_GRAY2RGB)
                 cell_pil = Image.fromarray(cell_rgb)
                 cell_transformed = transform(cell_pil).unsqueeze(0)
 
@@ -72,37 +77,34 @@ def recognize_digits(image):
                     predicted_digit = output.argmax(dim=1).item()
                     confidence = probabilities[0, predicted_digit].item()
 
-                # Si la confianza es menor a 0.98, consideramos la celda como vacía
-                if confidence < 0.99:
-                    digits[row, col] = 0
-                    print(f'Celda ({row}, {col}) vacía (baja confianza: {confidence:.2f})')
-                    # Mostrar la imagen preprocesada de la celda vacía
-                    #plt.imshow(cell_preprocessed, cmap='gray')
-                    #plt.title(f'Celda ({row}, {col}) - Vacía\nConfianza: {confidence:.2f}')
-                    #plt.axis('off')
-                    #plt.show()
-                else:
-                    digits[row, col] = predicted_digit
-                    print(f'Celda ({row}, {col}) predicción: {predicted_digit} con confianza: {confidence:.2f}')
-                    # Mostrar la imagen preprocesada junto con la predicción y confianza
-                    #plt.imshow(cell_preprocessed, cmap='gray')
-                    #plt.title(f'Celda ({row}, {col}) - Pred: {predicted_digit}\nConfianza: {confidence:.2f}')
-                    #plt.axis('off')
-                    #plt.show()
+                digits[row, col] = predicted_digit
+                print(f'Celda ({row}, {col}) predicción: {predicted_digit} con confianza: {confidence:.2f}')
+                # Mostrar la celda preprocesada y la predicción
+                #plt.imshow(cell, cmap='gray')
+                #plt.title(f'Celda ({row}, {col}) - Pred: {predicted_digit}\nConfianza: {confidence:.2f}')
+                #plt.axis('off')
+                #plt.show()
 
     return digits
 
+def clean_cell_image(cell):
+    kernel = np.ones((3, 3), np.uint8)
+    cell = cv2.morphologyEx(cell, cv2.MORPH_OPEN, kernel)
+    cell = cv2.morphologyEx(cell, cv2.MORPH_CLOSE, kernel)
+    cell = cv2.GaussianBlur(cell, (3, 3), 0)
+    return cell
+
 def is_cell_empty(cell):
-    # Contar los píxeles blancos (valor 255) después de la umbralización inversa
     non_zero_pixels = cv2.countNonZero(cell)
-    if non_zero_pixels < (cell.shape[0] * cell.shape[1]) * 0.01:  # Ajusta el umbral según sea necesario
+    total_pixels = cell.shape[0] * cell.shape[1]
+    ratio = non_zero_pixels / total_pixels
+    if ratio < 0.1:  # Ajusta este umbral según tus necesidades
         return True
     else:
         return False
 
-# Uso del código para reconocer los dígitos en una imagen de Sudoku
 
-image_path = "./assets/s2.jpeg"
+image_path = "./assets/s1.jpeg"
 processed_image = preprocess_sudoku_image(image_path)
 if processed_image is not None:
     recognized_digits = recognize_digits(processed_image)
