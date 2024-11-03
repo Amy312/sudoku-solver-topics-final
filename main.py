@@ -1,8 +1,7 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse, JSONResponse
-from solver import solve_sudoku
-from gradio_interface import launch_gradio_interface
-from image_processing import board_to_image
+from utils.solver import solve_sudoku
+from utils.image_processing import board_to_image
 from utils.json_formater import json_formater, convert_ndarray_to_list, get_final_matrix, board_formater
 from segmentation.sudoku_bound_detector import SudokuBoundDetector
 from digits.digit_recognition import detect_digits_from_image
@@ -213,10 +212,6 @@ async def solve_sudoku_from_image(file: UploadFile = File(...)):
         )
 
 if __name__ == "__main__":
-    # LAUNCH GRADIO
-    # launch_gradio_interface()
-    
-    # LAUNCH API
     import uvicorn
     port = 3000
     print(f'Proyect running, test on: http://127.0.0.1:{port}/docs')

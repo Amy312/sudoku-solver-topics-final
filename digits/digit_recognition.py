@@ -98,7 +98,7 @@ def is_cell_empty(cell):
     non_zero_pixels = cv2.countNonZero(cell)
     total_pixels = cell.shape[0] * cell.shape[1]
     ratio = non_zero_pixels / total_pixels
-    if ratio < 0.1:  # Ajusta este umbral según tus necesidades
+    if ratio < 0.18:  # Ajusta este umbral según tus necesidades
         return True
     else:
         return False
@@ -106,7 +106,6 @@ def is_cell_empty(cell):
 def detect_digits_from_image(path: str) -> list[list[int]]:
     image_path = path
     processed_image = preprocess_sudoku_image(image_path)
-    
     if processed_image is not None:
         recognized_digits_flat = recognize_digits(processed_image)
         print("Dígitos Reconocidos:")

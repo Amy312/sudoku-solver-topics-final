@@ -2,7 +2,7 @@ import numpy as np
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 from typing import Union, List
-from image_processing import board_to_image
+from utils.image_processing import board_to_image
 import io
 
 def convert_ndarray_to_list(data: Union[np.ndarray, List[np.ndarray]]):
