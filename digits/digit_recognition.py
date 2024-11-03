@@ -98,7 +98,7 @@ def is_cell_empty(cell):
     non_zero_pixels = cv2.countNonZero(cell)
     total_pixels = cell.shape[0] * cell.shape[1]
     ratio = non_zero_pixels / total_pixels
-    if ratio < 0.18:  # Ajusta este umbral según tus necesidades
+    if ratio < 0.12:  # Ajusta este umbral según tus necesidades
         return True
     else:
         return False

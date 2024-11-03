@@ -32,9 +32,7 @@ interface = gr.Interface(
     fn=solve_sudoku_from_image,
     inputs=gr.Image(
         type="pil", 
-        label="Upload or Capture Sudoku Image", 
-        source="upload",
-        tool="editor",
+        label="Upload or Capture Sudoku Image",
         mirror_webcam=False
     ),
     outputs="image",
@@ -45,7 +43,7 @@ interface = gr.Interface(
         "Please make sure the Sudoku is clear and well-lit for the best results. "
         "If any issues arise, simply try again with a different image."
     ),
-    examples=[["sample_sudoku_image.png"]],
+    examples=[["sample_sudoku_image.jpg"]],
     theme="default",
     allow_flagging="never"
 )

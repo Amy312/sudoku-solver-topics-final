@@ -41,8 +41,8 @@ OUTPUT:
     [ 3, 4, 5, 2, 8, 6, 1, 7, 9 ]
 ]
 '''
-@app.post("/solve_sudoku_by_number_matrix")
-async def solve_sudoku_by_number_matrix(board: list[list[int]]):
+@app.post("/get_solved_sudoku_from_number_matrix")
+async def get_solved_sudoku_from_number_matrix(board: list[list[int]]):
     try:
         solved_board = solve_sudoku(board)
         if(len(solved_board) == 0):
@@ -73,7 +73,7 @@ async def get_solved_board_matrix_from_image(file: UploadFile = File(...)):
         with open("temp_image.png", "wb") as f:
             f.write(image)
         
-        img_bytes = detector.process_and_return_corrected_image("temp_image.png")
+        img_bytes = detector.process_and_return_image("temp_image.png")
         
         processed_image = img_bytes.getvalue()
         
@@ -108,48 +108,8 @@ async def get_solved_board_matrix_from_image(file: UploadFile = File(...)):
                 code_err=500
             )
 
-@app.post("/process_sent_image_to_sudoku_image")
-async def process_sent_image_to_sudoku_image(file: UploadFile = File(...)):
-    try:
-        image = await file.read()
-        with open("temp_image.png", "wb") as f:
-            f.write(image)
-        
-        img_bytes = detector.process_and_return_corrected_image("temp_image.png")
-        
-        processed_image = img_bytes.getvalue()
-        
-        with open("processed_image.png", "wb") as f:
-            f.write(processed_image)
-        
-        path_processed_image = './processed_image.png'
-        
-        board = detect_digits_from_image(path=path_processed_image)
-        
-        board = convert_ndarray_to_list(board)
-        
-        if len(board) == 0 or len(board[0]) == 0:
-            return json_formater(
-                    message='Could not detect digits',
-                    is_err=True,
-                    code_err=500
-                )
-        
-        print('process_sent_image: Image processed correctly')
-
-        board = get_final_matrix(board)
-        return board_formater(board)
-
-    except Exception as err:
-        print('process_sent_image:', err)
-        return json_formater(
-                message='Error while processing image',
-                is_err=True,
-                code_err=500
-            )
-
-@app.post("/solve_sudoku_from_board_matrix")
-async def solve_from_board_to_image(board: list[list[int]]):
+@app.post("/get_solved_sudoku_image_from_board_matrix")
+async def get_solved_sudoku_image_from_board_matrix(board: list[list[int]]):
     try:
         solved_board = solve_sudoku(board)
         
@@ -170,8 +130,8 @@ async def solve_from_board_to_image(board: list[list[int]]):
             code_err=500
         )
 
-@app.post("/solve_sudoku_from_image")
-async def solve_sudoku_from_image(file: UploadFile = File(...)):
+@app.post("/get_solved_sudoku_image_from_image")
+async def get_solved_sudoku_image_from_image(file: UploadFile = File(...)):
     try:
         image = await file.read()
         with open("temp_image.png", "wb") as f:

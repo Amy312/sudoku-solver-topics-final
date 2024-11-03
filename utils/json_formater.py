@@ -37,6 +37,6 @@ def board_formater(board: list[list[int]]):
   img_bytes.seek(0)
   
   headers = {
-      'Content-Disposition': 'attachment; filename="sudoku_board.png"'
+    'Content-Disposition': 'attachment; filename="sudoku_board.png"'
   }
-  return StreamingResponse(img_bytes, media_type="image/png", headers=headers)
+  return StreamingResponse(img_bytes, media_type="image/png")
