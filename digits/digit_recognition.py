@@ -103,12 +103,21 @@ def is_cell_empty(cell):
     else:
         return False
 
-
-image_path = "./assets/s1.jpeg"
-processed_image = preprocess_sudoku_image(image_path)
-if processed_image is not None:
-    recognized_digits = recognize_digits(processed_image)
-    print("Dígitos Reconocidos:")
-    print(recognized_digits)
-else:
-    print("No se pudo procesar la imagen del Sudoku.")
+def detect_digits_from_image(path: str) -> list[list[int]]:
+    image_path = path
+    processed_image = preprocess_sudoku_image(image_path)
+    
+    if processed_image is not None:
+        recognized_digits_flat = recognize_digits(processed_image)
+        print("Dígitos Reconocidos:")
+        print(recognized_digits_flat)
+        
+        recognized_digits = []
+        for i in range(9):
+            row = recognized_digits_flat[i * 9:(i + 1) * 9]
+            recognized_digits.append(row)
+        
+        return recognized_digits
+    else:
+        print("No se pudo procesar la imagen del Sudoku.")
+        return [[]]

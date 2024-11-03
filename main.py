@@ -1,10 +1,12 @@
-from fastapi import FastAPI, UploadFile, File
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi.responses import StreamingResponse, JSONResponse
 from solver import solve_sudoku
 from gradio_interface import launch_gradio_interface
-from image_processing import process_image, board_to_image
-from utils.json_formater import json_formater
+from image_processing import board_to_image
+from utils.json_formater import json_formater, convert_ndarray_to_list, get_final_matrix, board_formater
 from segmentation.sudoku_bound_detector import SudokuBoundDetector
+from digits.digit_recognition import detect_digits_from_image
+from PIL import Image
 import cv2
 import io
 
@@ -53,9 +55,9 @@ async def solve_sudoku_manual(board: list[list[int]]):
         print('solve_sudoku_manual: Sudoku solved')
         return json_formater(
             data={
-                "solved_board": solved_board
+                "message": 'Sudoku solved',
+                "data": solved_board
             },
-            message='Sudoku solved'
         )
     except Exception as err:
         print('solve_sudoku_manual:', err)
@@ -65,41 +67,92 @@ async def solve_sudoku_manual(board: list[list[int]]):
             code_err=err
         )
 
-@app.post("/process_sent_image")
-async def process_sent_image(file: UploadFile = File(...)):
+@app.post("/process_sent_image_to_sudoku_board")
+async def process_sent_image_to_sudoku_board(file: UploadFile = File(...)):
     try:
-        processed_image, board = process_image(await file.read())
+        image = await file.read()
+        with open("temp_image.png", "wb") as f:
+            f.write(image)
+        
+        img_bytes = detector.process_and_return_corrected_image("temp_image.png")
+        
+        processed_image = img_bytes.getvalue()
+        
+        with open("processed_image.png", "wb") as f:
+            f.write(processed_image)
+        
+        path_processed_image = './processed_image.png'
+        
+        board = detect_digits_from_image(path=path_processed_image)
+        
+        if len(board) == 0 or len(board[0]) == 0:
+            return json_formater(
+                    message='Could not detect digits',
+                    is_err=True,
+                    code_err=500
+                )
+        
         print('process_sent_image: Image processed correctly')
-        headers = {
-            'Content-Disposition': 'attachment; filename="sudoku_board.png"'
-        }
-        return [json_formater(
-            data={
-                'board_gotten': board,
-            },
-            message='Image processed correctly'
-        ), StreamingResponse(processed_image, media_type="image/png", headers=headers)]
-    except Exception as err:
-        print('process_sent_image: ',err)
+
         return json_formater(
-            message='Error while processing image',
-            is_err=True,
-            code_err=500
-        )
+                data={
+                    "message": "Image processed correctly to board",
+                    "data": board
+                },
+            )
+
+    except Exception as err:
+        print('process_sent_image:', err)
+        return json_formater(
+                message='Error while processing image',
+                is_err=True,
+                code_err=500
+            )
+
+@app.post("/process_sent_image_to_sudoku_image")
+async def process_sent_image_to_sudoku_image(file: UploadFile = File(...)):
+    try:
+        image = await file.read()
+        with open("temp_image.png", "wb") as f:
+            f.write(image)
+        
+        img_bytes = detector.process_and_return_corrected_image("temp_image.png")
+        
+        processed_image = img_bytes.getvalue()
+        
+        with open("processed_image.png", "wb") as f:
+            f.write(processed_image)
+        
+        path_processed_image = './processed_image.png'
+        
+        board = detect_digits_from_image(path=path_processed_image)
+        
+        board = convert_ndarray_to_list(board)
+        
+        if len(board) == 0 or len(board[0]) == 0:
+            return json_formater(
+                    message='Could not detect digits',
+                    is_err=True,
+                    code_err=500
+                )
+        
+        print('process_sent_image: Image processed correctly')
+
+        board = get_final_matrix(board)
+        return board_formater(board)
+
+    except Exception as err:
+        print('process_sent_image:', err)
+        return json_formater(
+                message='Error while processing image',
+                is_err=True,
+                code_err=500
+            )
 
 @app.post("/board_to_image")
 async def create_board_to_image(board: list[list[int]]):
     try:
-        img = board_to_image(board)
-        
-        img_bytes = io.BytesIO()
-        img.save(img_bytes, format="PNG")
-        img_bytes.seek(0)
-        
-        headers = {
-            'Content-Disposition': 'attachment; filename="sudoku_board.png"'
-        }
-        return StreamingResponse(img_bytes, media_type="image/png", headers=headers)
+        return board_formater(board)
 
     except Exception as err:
         print('board_to_image: ',err)
@@ -121,16 +174,7 @@ async def solve_from_board_to_image(board: list[list[int]]):
                 code_err=500
             )
         
-        img = board_to_image(solved_board)
-        
-        img_bytes = io.BytesIO()
-        img.save(img_bytes, format="PNG")
-        img_bytes.seek(0)
-        
-        headers = {
-            'Content-Disposition': 'attachment; filename="sudoku_board.png"'
-        }
-        return StreamingResponse(img_bytes, media_type="image/png", headers=headers)
+        return board_formater(solved_board)
 
     except Exception as err:
         print('board_to_image: ',err)
@@ -140,30 +184,41 @@ async def solve_from_board_to_image(board: list[list[int]]):
             code_err=500
         )
 
-@app.post("/solve_from_image")
+@app.post("/solve_sudoku_from_image")
 async def solve_sudoku_from_image(file: UploadFile = File(...)):
     try:
-        _, board = process_image(await file.read())
+        image = await file.read()
+        with open("temp_image.png", "wb") as f:
+            f.write(image)
+        
+        img_bytes = detector.process_and_return_image("temp_image.png")
+        
+        processed_image = img_bytes.getvalue()
+        
+        with open("processed_image.png", "wb") as f:
+            f.write(processed_image)
+        
+        path_processed_image = './processed_image.png'
+        
+        board = detect_digits_from_image(path=path_processed_image)
+        
+        board = get_final_matrix(board)
+        
         solved_board = solve_sudoku(board)
         
+        if len(solved_board) == 0:
+            raise HTTPException(status_code=500, detail="Sudoku does not have a solution")
         img = board_to_image(solved_board)
-        
         img_bytes = io.BytesIO()
         img.save(img_bytes, format="PNG")
         img_bytes.seek(0)
         
-        headers = {
-            'Content-Disposition': 'attachment; filename="sudoku_board.png"'
-        }
+        print('solve_sudoku_from_image: BOARD SOLVED')
         
-        return [json_formater(
-            data={
-                'solve_sudoku': board,
-            },
-            message='Sudoku from image solved correctly'
-        ), StreamingResponse(img_bytes, media_type="image/png", headers=headers)]
+        return StreamingResponse(img_bytes, media_type="image/png")
+        
     except Exception as err:
-        print('solve_sudoku_from_image: ',err)
+        print('solve_sudoku_from_image:', err)
         return json_formater(
             message='Error while solving sudoku from image',
             is_err=True,
@@ -178,9 +233,9 @@ async def display_original_image(file: UploadFile = File(...)):
             f.write(image)
         img = detector.read_img("temp_image.png")
         detector.display_img(img)
-        return json_formater("Original image displayed successfully.")
+        return json_formater(data={"message": "Original image displayed successfully."})
     except Exception as err:
-        return json_formater(f"Error displaying original image: {err}", is_err=True)
+        return json_formater(message=f"Error displaying original image: {err}", is_err=True)
 
 @app.post("/get-detection/")
 async def get_detection(file: UploadFile = File(...)):
@@ -190,9 +245,12 @@ async def get_detection(file: UploadFile = File(...)):
             f.write(image)
         detection = detector.get_detection("temp_image.png")
         box_coordinates = detection.boxes.xyxy.tolist()
-        return json_formater("Bounding box coordinates detected.", data=box_coordinates)
+        return json_formater(data={
+            "message": "Bounding box coordinates detected.",
+            "data": box_coordinates
+        })
     except Exception as err:
-        return json_formater(f"Error getting detection: {err}", is_err=True)
+        return json_formater(message=f"Error getting detection: {err}", is_err=True)
 
 @app.post("/get-crop-box/")
 async def get_crop_box(file: UploadFile = File(...)):
@@ -204,7 +262,7 @@ async def get_crop_box(file: UploadFile = File(...)):
         _, encoded_image = cv2.imencode(".png", cropped_image)
         return StreamingResponse(io.BytesIO(encoded_image.tobytes()), media_type="image/png")
     except Exception as err:
-        return json_formater(f"Error cropping Sudoku box: {err}", is_err=True)
+        return json_formater(message=f"Error cropping Sudoku box: {err}", is_err=True)
 
 @app.post("/display-crop-box/")
 async def display_crop_box(file: UploadFile = File(...)):
@@ -213,9 +271,9 @@ async def display_crop_box(file: UploadFile = File(...)):
         with open("temp_image.png", "wb") as f:
             f.write(image)
         detector.show_crop_box("temp_image.png")
-        return json_formater("Cropped Sudoku box displayed successfully.")
+        return json_formater(data={"message":"Cropped Sudoku box displayed successfully."})
     except Exception as err:
-        return json_formater(f"Error displaying cropped box: {err}", is_err=True)
+        return json_formater(message=f"Error displaying cropped box: {err}", is_err=True)
 
 @app.post("/correct-sudoku-area/")
 async def correct_sudoku_area(file: UploadFile = File(...)):
@@ -230,7 +288,7 @@ async def correct_sudoku_area(file: UploadFile = File(...)):
         _, encoded_image = cv2.imencode(".png", corrected_image)
         return StreamingResponse(io.BytesIO(encoded_image.tobytes()), media_type="image/png")
     except Exception as err:
-        return json_formater(f"Error correcting Sudoku area: {err}", is_err=True)
+        return json_formater(message=f"Error correcting Sudoku area: {err}", is_err=True)
 
 @app.post("/display-corrected-sudoku/")
 async def display_corrected_sudoku(file: UploadFile = File(...)):
@@ -239,9 +297,9 @@ async def display_corrected_sudoku(file: UploadFile = File(...)):
         with open("temp_image.png", "wb") as f:
             f.write(image)
         detector.display_corrected_sudoku("temp_image.png")
-        return json_formater("Corrected and cleaned Sudoku box displayed successfully.")
+        return json_formater(data={"message": "Corrected and cleaned Sudoku box displayed successfully."})
     except Exception as err:
-        return json_formater(f"Error displaying corrected Sudoku box: {err}", is_err=True)
+        return json_formater(message=f"Error displaying corrected Sudoku box: {err}", is_err=True)
 
 @app.post("/get-final-image/")
 async def get_final_image(file: UploadFile = File(...)):
@@ -252,7 +310,7 @@ async def get_final_image(file: UploadFile = File(...)):
         img_bytes = detector.process_and_return_corrected_image("temp_image.png")
         return StreamingResponse(img_bytes, media_type="image/png")
     except Exception as err:
-        return json_formater(f"Error processing final image: {err}", is_err=True)
+        return json_formater(message=f"Error processing final image: {err}", is_err=True)
 
 @app.post("/get_jpg_processed_image")
 async def detect_sudoku_from_image(file: UploadFile = File(...)):

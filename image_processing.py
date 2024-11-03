@@ -1,21 +1,6 @@
 import cv2
 import numpy as np
-# from yolo import detect_sudoku
 from PIL import Image, ImageDraw, ImageFont
-
-def process_image(image_bytes):
-    np_arr = np.frombuffer(image_bytes, np.uint8)
-    image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-
-    # sudoku_coords = detect_sudoku(image)
-
-    # if sudoku_coords:
-    #     corners = adjust_perspective(image, sudoku_coords)
-    #     processed_image = apply_filters(corners)
-    #     board = extract_numbers(processed_image)
-    #     return processed_image, board
-    # else:
-    #     raise ValueError("Sudoku not found in the image")
 
 def board_to_image(board: list[list[int]], cell_size=50, line_thickness=2):
     board_size = cell_size * 9
@@ -52,15 +37,3 @@ def board_to_image(board: list[list[int]], cell_size=50, line_thickness=2):
     draw.line([(board_size - 1, 0), (board_size - 1, board_size - 1)], fill="black", width=line_thickness * 2)
 
     return img
-
-def adjust_perspective(image, corners):
-    # Implementar lógica para ajustar la perspectiva
-    pass
-
-def apply_filters(image):
-    # Implementar lógica de filtros para mejorar la visualización
-    pass
-
-def extract_numbers(image):
-    # Utilizar el modelo para identificar números y casillas vacías
-    pass

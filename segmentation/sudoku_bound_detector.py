@@ -118,3 +118,25 @@ class SudokuBoundDetector:
         img_bytes.seek(0)
         
         return img_bytes
+
+    def process_and_return_image(self, img_path):
+        """Processes the image to detect, correct, and clean the sudoku area, returning the final image as bytes."""
+        prediction = self.get_detection(img_path)
+        orig_img = prediction.orig_img
+        contour = prediction.masks.xy[0]
+        corrected_img = self.correct_area(orig_img, contour)
+        
+        img_bytes = io.BytesIO()
+        # final_img = cv2.cvtColor(corrected_img, cv2.COLOR_GRAY2RGB)
+        Image.fromarray(corrected_img).save(img_bytes, format="PNG")
+        img_bytes.seek(0)
+        
+        return img_bytes
+
+    def return_sudoku(self, img_path):
+        """Detects and displays the corrected sudoku area."""
+        prediction = self.get_detection(img_path)
+        orig_img = prediction.orig_img
+        contour = prediction.masks.xy[0]
+        final_img = self.correct_area(orig_img, contour)
+        return final_img
