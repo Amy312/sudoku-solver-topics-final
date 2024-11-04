@@ -7,7 +7,7 @@ def board_to_image(board: list[list[int]], cell_size=50, line_thickness=2):
     img = Image.new("RGB", (board_size, board_size), "white")
     draw = ImageDraw.Draw(img)
 
-    font_size = int(cell_size * 2)
+    font_size = int(cell_size * 0.8)
     try:
         font = ImageFont.truetype("arial.ttf", font_size)
     except IOError:
